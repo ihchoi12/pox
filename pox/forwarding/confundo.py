@@ -285,6 +285,7 @@ class l3_switch (EventMixin):
         
         if packet.next.payload.SYN and not packet.next.payload.ACK: #this is to send SYN, ACK
           print "SYN packet", packet.next.payload
+         
           e = pkt.ethernet()
           e.src = self.arpTable[dpid][dstaddr].mac
           e.dst = EthAddr(packet.src)
@@ -292,7 +293,7 @@ class l3_switch (EventMixin):
           tcpp = pkt.tcp()
           tcpp.srcport = packet.next.payload.dstport   #packet.next.payload = tcpp, packet.next = ip, packet = E
           tcpp.dstport = packet.next.payload.srcport
-          tcpp.seq = 0 #random.randint(0, 10000) # will be random
+          tcpp.seq = 0
           tcpp.ack = packet.next.payload.seq+1
           tcpp.win = 29200
           tcpp.SYN = True  #send SYN
@@ -337,13 +338,6 @@ class l3_switch (EventMixin):
           e.payload = tcp
           
           
-
-          #msg = makeMessage(magic,"version",makeVersionPayload())
-		      #print "sending version packet"
-		      #sock.send(msg)
-		      #time.sleep(1)
-		      #msg2 = makeMessage(magic,"verack","") #How the Verack msg was created by the ATTR
-		      #sock.send(msg2)
 
           print "*****"
           msg = of.ofp_packet_out()
