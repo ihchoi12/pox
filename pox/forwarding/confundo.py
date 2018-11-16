@@ -214,6 +214,7 @@ class l3_switch (EventMixin):
     dpid = event.connection.dpid
     inport = event.port
     packet = event.parsed
+    log.warning("Inho #5168 : %s %s ", type(dpid), dpid)
     if not packet.parsed:
       log.warning("%i %i ignoring unparsed packet", dpid, inport)
       return
@@ -257,7 +258,45 @@ class l3_switch (EventMixin):
         if packet.next.srcip == IPAddr("10.0.0.1"):
           self.arpTable[dpid][packet.next.dstip] = Entry(inport, packet.src)
           self.arpTable[dpid][packet.next.dstip].mac = EthAddr("32:d5:a3:be:19:77")
-      
+        else :
+          self.arpTable[dpid][packet.next.dstip] = Entry(inport, packet.src)
+          self.arpTable[dpid][packet.next.dstip].mac = EthAddr("08:00:27:2a:87:c3")
+
+
+      if packet.next.protocol == ipv4.TCP_PROTOCOL:
+        if packet.next.dstip == "10.0.0.1" :
+          e = pkt.ethernet()
+          e.src = EthAddr(packet.src)
+          e.dst = self.arpTable[dpid][dstaddr].mac
+          e.type = e.IP_TYPE
+          tcpp = pkt.tcp()
+          tcpp.srcport = packet.next.payload.srcport   #packet.next.payload = tcpp, packet.next = ip, packet = E
+          tcpp.dstport = packet.next.payload.dstport
+          tcpp.seq = packet.next.payload.seq
+          tcpp.ack = packet.next.payload.ack
+          tcpp.win = 29200
+          tcpp.SYN = True  #send SYN
+          tcpp.ACK = False 
+
+          tcp = pkt.ipv4()
+          tcp.protocol = tcp.TCP_PROTOCOL
+          tcp.srcip = packet.next.srcip
+          tcp.dstip = packet.next.dstip
+          tcp.payload = tcpp
+
+          e.payload = tcp
+          msg = of.ofp_packet_out()
+          msg.data = e.pack()
+          msg.actions.append(of.ofp_action_output(port =
+                                                  of.OFPP_IN_PORT))
+          msg.in_port = inport
+          event.connection.send(msg)
+
+          print(e.dst)
+          print(packet.next.dstip)
+
+
+
       if packet.next.protocol == ipv4.ICMP_PROTOCOL:
         e = pkt.ethernet()
         e.src = self.arpTable[dpid][dstaddr].mac
@@ -281,7 +320,7 @@ class l3_switch (EventMixin):
         event.connection.send(msg)
         return
 
-      if packet.next.protocol == ipv4.TCP_PROTOCOL:
+      if packet.next.protocol == ipv4.TCP_PROTOCOL and packet.next.dstip != "10.0.0.1" :
         
         if packet.next.payload.SYN and not packet.next.payload.ACK: #this is to send SYN, ACK
           print "SYN packet", packet.next.payload
